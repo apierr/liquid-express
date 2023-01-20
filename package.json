@@ -4,7 +4,7 @@
     "description": "Liquid template engine for express.",
     "main": "index.js",
     "scripts": {
-        "start": "cd src && node ."
+        "start": "cd src && node --watch ."
     },
     "keywords": [
         "express",
