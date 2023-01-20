@@ -1,3 +1,4 @@
+require('dotenv').config();
 const fs = require('fs');
 const Liquid = require('liquid');
 const engine = new Liquid.Engine();
@@ -12,6 +13,7 @@ const app = require('express').application;
  * // other codes
  */
 module.exports = (ExpressApp) => {
+    console.log("process.env.S3_BUCKET:", process.env.S3_BUCKET);
     ExpressApp.engine('liquid', (path, options, cb) => {
         fs.readFile(path, { encoding: 'utf-8' }, (error, data) => {
             if (error) return cb(error);
