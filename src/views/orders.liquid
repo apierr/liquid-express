@@ -1,0 +1,98 @@
+<div class="grid__cell align-right">
+  {% assign return_request = false %}
+  {% for tag in order.tags %}
+    {% if tag contains "return_request" %}
+      {% assign return_request = true %}
+    {% endif %}
+  {% endfor %}
+  <ul id="products">
+    {% for order in orders %}
+      <li>
+        <h2>{{ order.id }}</h2>
+        {% unless order.tags contains 'return_request#sc2_validated' %}
+          TODO
+        {% endunless %}
+      </li>
+    {% endfor %}
+  </ul>
+</div>
+
+<div class="grid__cell align-right">
+  {% assign return_request = false %}
+  {% for tag in order.tags %}
+    {% if tag contains "return_request" %}
+      {% assign return_request = true %}
+    {% endif %}
+  {% endfor %}
+  {% if order.metafields.back["return_label_pdf"] != blank %}
+    {% assign order_total_refunded_amount = order.total_refunded_amount | plus: 0 %}
+
+    {% unless order_total_refunded_amount > 0 %}
+      {% unless order.tags contains 'return_request#sc2_validated' %}
+        <a
+          class="button button--invert mt-20"
+          target="_blank"
+          href="{{ order.metafields.back['return_label_pdf'] }}">
+          {{ 'customer.orders.confirmation_return_button' }}
+        </a>
+      {% endunless %}
+    {% endunless %}
+  {% elsif return_request %}
+    {%- if order.total_refunded_amount > 0 -%}
+
+
+      {% assign currentCanonicalURL = canonical_url | append: '/' %}
+      {% assign priceWithoutCurrency = order.total_refunded_amount | money_without_currency %}
+      {% assign newPrice = '' %}
+      {% if details_currency == 'USD' %}
+        {% if currentCanonicalURL contains "/fr/" %}
+          {% assign newPrice = priceWithoutCurrency | append: '$ USD' %}
+        {% else %}
+          {% assign newPrice = 'USD $' | append: priceWithoutCurrency %}
+        {% endif %}
+      {% elsif details_currency == 'EUR' %}
+        {% if currentCanonicalURL contains "/fr/" %}
+          {% assign newPrice = priceWithoutCurrency | append: '€' %}
+        {% else %}
+          {% assign newPrice = '€' | append: priceWithoutCurrency %}
+        {% endif %}
+      {% else %}
+        {% assign newPrice = currency_symbol | append: priceWithoutCurrency %}
+      {% endif %}
+      <p class="align-left text--s">You have been refunded {{ newPrice }}</p>
+
+    {%- else -%}
+      <p class="align-left text--s">{{ 'customer.orders.return_request_text' }}</p>
+    {%- endif -%}
+  {% else %}
+
+    {% assign lastDate = '01/01/2021' | date: '%s' %}
+    {% for line_item in order.line_items %}
+
+      {% assign itemLastDate = line_item.fulfillment.created_at | date: '%s' %}
+
+      {% if itemLastDate > lastDate %}
+        {% assign lastDate = itemLastDate %}
+      {% endif %}
+
+    {% endfor %}
+
+    {% assign dateNow = "now" | date: '%s' %}
+    {% assign differenceDate = dateNow | minus: lastDate %}
+    {% assign maxDay = settings.return_request_max_days | times: 86400 %}
+
+    {% assign wrongDate = '01/01/2021' | date: '%s' %}
+    {% unless order.tags contains 'WTC' or order.tags contains 'imported_order' %}
+      {% if lastDate != wrongDate and differenceDate < maxDay %}
+
+        <button data-order-returns class="order__show-return link link--underline">{{ 'customer.orders.return_button' }}</button>
+
+      {% endif %}
+    {% endunless %}
+
+  {% endif %}
+  <div data-order-return-container class="hide mt-20 order__return-container">
+    <button data-order-return-back class="link order-list__return">{{ 'customer.orders.return_back_button' }}</button>
+    <button data-order-return-next class="button button--invert order-list__next">{{ 'customer.orders.return_next_button' }}</button>
+  </div>
+</div>

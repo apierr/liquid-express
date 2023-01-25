@@ -1,4 +1,589 @@
+{% for currency in shop.enabled_currencies %}
+  {% if currency.iso_code == shop.currency %}
+    {% assign shop_currency_symbol = shop.currency.symbol | default: cart.currency.symbol %}
+    {% break %}
+  {% endif %}
+{% endfor %}
 
+<div class="customer_orders customer_account container--primary">
+  <div class="container--large orders">
+    <div data-shop-domain="{{ shop.permanent_domain }}" class="grid">
+
+      <div class="grid__cell 1/1 2/9--desk 3/9--lap-and-up grid--center">
+        {% render 'account-menu', with current: template.name %}
+      </div>
+
+      <div class="grid__cell 1/1 7/9--desk 6/9--lap-and-up mt-40">
+
+        <div class="customer_account_block container--account mb-30">
+
+          <h2 class="heading--secondary z-h4">{{ 'customer.orders.my_orders' | t }}</h2>
+          <p class="bold">{{ 'customer.orders.orders_history' | t }}</p>
+          <select data-sort-orders class="input input--medium">
+            <option value="all">{{ 'customer.orders.filter_all' | t }}</option>
+            <option value="last_month">{{ 'customer.orders.filter_last_month' | t }}</option>
+            <option value="last_six_month">{{ 'customer.orders.filter_last_six_months' | t }}</option>
+            <option value="current_year">{{ 'now' | date: "%Y" }}</option>
+            <option value="last_year">{{ 'now' | date: "%Y" | minus: 1 }}</option>
+          </select>
+
+        </div>
+
+        {% for order in customer.orders %}
+
+          {%- if order.metafields.back.return_requests_history[0].items.size > 0 -%}
+            {% assign itemsRefunded = order.metafields.back.return_requests_history[0].items %}
+          {%- endif -%}
+
+          {% if order.metafields.front.details %}
+            {% assign details_currency = order.metafields.front.details.currency %}
+
+            {% if details_currency == "EUR" %}
+              {% assign currency_symbol = "€" %}
+            {% elsif details_currency == "USD" %}
+              {% assign currency_symbol = "$" %}
+            {% elsif details_currency == "TWD" %}
+              {% assign currency_symbol = "NT$ " %}
+            {% elsif details_currency == "CNY" or details_currency == "RMB" %}
+              {% assign currency_symbol = "¥" %}
+            {% endif %}
+          {% else %}
+            {% assign currency_symbol = shop_currency_symbol %}
+          {% endif %}
+
+          <div
+            data-order="{{ order.id }}"
+            data-order-date="{{ order.created_at | date: '%Y-%m-%d' }}"
+            class="customer_account_block container--account mb-30 align-left align-center--mobile">
+
+            <div data-order-return-title class="hide mb-40">
+              <h2 class="heading--secondary z-h4">{{ 'customer.orders.return_title' | t }}</h2>
+            </div>
+
+            <a class="heading heading--secondary z-h6" href="{{order.customer_url}}">{{ 'customer.order.title' | t: name: order.name | replace: "#", "N°" }}</a>
+
+            {%- comment -%} TODO: Check commande type with Moaaz {%- endcomment -%}
+            <div data-order-type="web" class="account__order-type">
+              <img src="https://cdn.shopify.com/s/files/1/0520/0445/4582/files/Faure-picto-final-sac.svg?v=1612276272" alt="sac">
+              {% if order.note contains "- store label :" and order.note contains "- order date" %}
+                {% assign orderStoreLabel = order.note | split: "- store label :" | last | split: "- order date" | first %}
+                {{ orderStoreLabel }}
+              {% else %}
+                <span>{{ 'customer.orders.type' | t }}</span>
+              {% endif %}
+            </div>
+
+
+            <div class="customer_orders_details_infos pt-10">
+              <div>
+                <span class="light">{{ 'customer.orders.date' | t }}</span>
+                <span class="bold">
+
+                  {% capture dateRef %}
+                    {{ '06/04/2021' | date: '%s' }}{% endcapture %}
+                  {% capture initialDate %}
+                    {{ order.created_at | date: '%s' }}{% endcapture %}
+
+                  {% if initialDate <= dateRef %}
+
+                    {%- if order.note contains "order date : " -%}
+
+                      {% assign orderDate = order.note | split: "order date : " | last | slice: 0, 10 %}
+                      {{ orderDate }}
+
+                    {%- else -%}
+
+                      {{ order.created_at | date: '%d/%m/%Y' }}
+
+                    {%- endif -%}
+
+                  {%- else -%}
+
+                    {{ order.created_at | date: '%d/%m/%Y' }}
+
+                  {%- endif -%}
+
+                </span>
+              </div>
+              <div>
+                {%- if order.line_items[0].fulfillment -%}
+                  <span class="light">
+                    <a href="{{ order.line_items[0].fulfillment.tracking_url }}">{{ 'customer.orders.tracking' | t }}</a>
+                  </span>
+                  <span class="bold">
+                    <a href="{{ order.line_items[0].fulfillment.tracking_url }}">{{ order.line_items[0].fulfillment.tracking_number }}</a>
+                  </span>
+                {%- endif -%}
+              </div>
+              <div>
+                <span class="light">{{ 'customer.orders.fulfillment_status' | t }}</span>
+                <span class="bold">
+                  {% assign order_total_refunded_amount = order.total_refunded_amount | plus: 0 %}
+                  {%- if order_total_refunded_amount > 0 -%}
+                    {{ section.settings.order_status_7 }}
+                  {%- elsif order.tags contains 'return_request#sc2_validated' -%}
+                    {{ section.settings.order_status_6 }}
+                  {%- elsif order.tags contains 'return_request#in_progress' -%}
+                    {{ section.settings.order_status_5 }}
+                  {%- elsif order.tags contains 'status_sc2:4' -%}
+                    {{ section.settings.order_status_4 }}
+                  {%- elsif order.tags contains 'status_sc2:3' -%}
+                    {{ section.settings.order_status_3 }}
+                  {%- elsif order.tags contains 'status_sc2:2' -%}
+                    {{ section.settings.order_status_2 }}
+                  {%- elsif order.tags contains 'status_sc2:1' -%}
+                    {{ section.settings.order_status_1 }}
+                  {%- else -%}
+                    {{ order.fulfillment_status_label }}
+                  {%- endif -%}
+                </span>
+              </div>
+              <div>
+                <span class="light">{{ 'customer.orders.total' | t }}</span>
+                {%- comment -%}
+                  <span class="bold">{{currency_symbol}}{{ order.total_price | money_without_currency }}</span>
+                {%- endcomment -%}
+                {%- comment -%}#### PRICE FORMAT ####{%- endcomment -%}
+                {% assign currentCanonicalURL = canonical_url | append: '/' %}
+                {% assign priceWithoutCurrency = order.total_price | money_without_currency %}
+                {% assign newPrice = '' %}
+                {% if details_currency == 'USD' %}
+                  {% if currentCanonicalURL contains "/fr/" %}
+                    {%- comment -%} International in French {%- endcomment -%}
+                    {% assign newPrice = priceWithoutCurrency | append: '$ USD' %}
+                    {% else %}
+                    {%- comment -%} International in English {%- endcomment -%}
+                    {% assign newPrice = 'USD $' | append: priceWithoutCurrency %}
+                  {% endif %}
+                {% elsif details_currency == 'EUR' %}
+                  {% if currentCanonicalURL contains "/fr/" %}
+                    {%- comment -%} Europe in French {%- endcomment -%}
+                    {% assign newPrice = priceWithoutCurrency | append: '€' %}
+                    {% else %}
+                    {%- comment -%} Europe in English {%- endcomment -%}
+                    {% assign newPrice = '€' | append: priceWithoutCurrency %}
+                  {% endif %}
+                {% else %}
+                  {% assign newPrice = currency_symbol | append: priceWithoutCurrency %}
+                {% endif %}
+                <span class="bold">{{ newPrice }}</span>
+              </div>
+              {%- comment -%}
+                <div class="grid__cell 1/1 align-center only-mobile">
+                <div class="order-accordion__trigger hide" data-order-accordion-trigger="{{forloop.index}}"></div>
+                </div>
+              {%- endcomment -%}
+            </div>
+
+            <div class="grid customer_orders customer_orders_photo" data-order-accordion-1="{{forloop.index}}">
+              {% for line_item in order.line_items %}
+                {% if line_item.product.featured_image != blank %}
+                  <div class="grid__cell 1/3 1/9--lap-and-up">
+                    {% render 'image' with img: line_item, classes: "featured-products__product-image", dimensions: "80x", responsiveSizes: false %}
+                  </div>
+                {% endif %}
+              {% endfor %}
+            </div>
+
+            <div class="grid customer_orders customer_orders_photo--details" data-order-accordion-2="{{forloop.index}}">
+              {% for line_item in order.line_items %}
+
+                {% if line_item.product.featured_image != blank %}
+                  <div data-order-return-item class="customer_orders_details grid__cell 1/1">
+                    <div class="grid relative">
+
+                      <div
+                        data-order-return-item-id="{{ line_item.id }}"
+                        data-order-return-item-sku="{{ line_item.sku }}"
+                        data-order-return-item-qty="{{ line_item.quantity }}"
+                        class="grid__cell 2/5 1/8--lap-and-up order__line-item-image">
+                        {% assign isGift = false %}
+                        {% unless line_item.properties == empty %}
+                          {% for property in line_item.properties %}
+                            {% if property.last contains '_featured_upsel' %}
+                              {% assign isGift = true %}
+                            {% endif %}
+                          {% endfor %}
+                        {% endunless %}
+                        {% if line_item.fulfillment and line_item.fulfillment.created_at and line_item.fulfillment != blank and isGift == false %}
+                          <label class="checkbox--container order__checkbox">
+                            <input
+                              data-order-return-input-product
+                              id="order-item-product--{{ line_item.product.id }}"
+                              type="checkbox">
+                            <span class="checkbox--checkmark"></span>
+                          </label>
+                        {% endif %}
+                        {% render 'image' with img: line_item, classes: "featured-products__product-image", dimensions: "100x", responsiveSizes: false %}
+                      </div>
+
+                      <div class="grid__cell 3/5 5/8--lap-and-up align-left--mobile pt-20">
+                        <p class="heading z-h9">{{ line_item.product.title | link_to: line_item.product.url }}</p>
+                        <p data-order-return-variant class="no-margin">{{ line_item.variant.title }}</p>
+
+                        {%- if itemsRefunded -%}
+
+                          {% assign amoutRefunded = 0 %}
+
+                          {%- for itemRefunded in itemsRefunded -%}
+
+                            {%- if itemRefunded.sku == line_item.sku -%}
+
+                              {% assign thisItemAmountRefunded = itemRefunded.quantity | times: itemRefunded.original_price %}
+
+                              {% assign amoutRefunded = amoutRefunded | plus: thisItemAmountRefunded %}
+
+                            {%- endif -%}
+
+                          {%- endfor -%}
+
+                          {%- if amoutRefunded > 0 -%}
+
+                            <p class="line_items_price__refunded only-mobile">
+                              {% assign amoutRefunded = amoutRefunded | times: 100 %}
+
+                              {%- comment -%}
+                                <span class="line_items_price bold">-&nbsp;{{currency_symbol}}{{ amoutRefunded | money_without_currency }}</span>
+                              {%- endcomment -%}
+
+                              {%- comment -%}#### PRICE FORMAT ####{%- endcomment -%}
+                              {% assign currentCanonicalURL = canonical_url | append: '/' %}
+                              {% assign priceWithoutCurrency = amoutRefunded | money_without_currency %}
+                              {% assign newPrice = '' %}
+                                {% if details_currency == 'USD' %}
+                                  {% if currentCanonicalURL contains "/fr/" %}
+                                  {%- comment -%} International in French {%- endcomment -%}
+                                  {% assign newPrice = priceWithoutCurrency | append: '$ USD' %}
+                                  {% else %}
+                                  {%- comment -%} International in English {%- endcomment -%}
+                                  {% assign newPrice = 'USD $' | append: priceWithoutCurrency %}
+                                {% endif %}
+                              {% elsif details_currency == 'EUR' %}
+                                {% if currentCanonicalURL contains "/fr/" %}
+                                  {%- comment -%} Europe in French {%- endcomment -%}
+                                  {% assign newPrice = priceWithoutCurrency | append: '€' %}
+                                  {% else %}
+                                  {%- comment -%} Europe in English {%- endcomment -%}
+                                  {% assign newPrice = '€' | append: priceWithoutCurrency %}
+                                {% endif %}
+                              {% else %}
+                                {% assign newPrice = currency_symbol | append: priceWithoutCurrency %}
+                              {% endif %}
+                              <span class="line_items_price bold">-&nbsp;{{ newPrice }}</span>
+
+                              <span class="line_items_price__refunded-status">REFUNDED</span>
+                            </p>
+
+                          {%- else -%}
+
+                            {%- comment -%}
+                              <p class="line_items_price bold only-mobile">{{currency_symbol}}{{ line_item.quantity | times: line_item.price | money_without_currency }}</p>
+                            {%- endcomment -%}
+
+                            {%- comment -%}#### PRICE FORMAT ####{%- endcomment -%}
+                            {% assign currentCanonicalURL = canonical_url | append: '/' %}
+                            {% assign priceWithoutCurrency = line_item.quantity | times: line_item.price | money_without_currency %}
+                            {% assign newPrice = '' %}
+                              {% if details_currency == 'USD' %}
+                                {% if currentCanonicalURL contains "/fr/" %}
+                                {%- comment -%} International in French {%- endcomment -%}
+                                {% assign newPrice = priceWithoutCurrency | append: '$ USD' %}
+                                {% else %}
+                                {%- comment -%} International in English {%- endcomment -%}
+                                {% assign newPrice = 'USD $' | append: priceWithoutCurrency %}
+                              {% endif %}
+                            {% elsif details_currency == 'EUR' %}
+                              {% if currentCanonicalURL contains "/fr/" %}
+                                {%- comment -%} Europe in French {%- endcomment -%}
+                                {% assign newPrice = priceWithoutCurrency | append: '€' %}
+                                {% else %}
+                                {%- comment -%} Europe in English {%- endcomment -%}
+                                {% assign newPrice = '€' | append: priceWithoutCurrency %}
+                              {% endif %}
+                            {% else %}
+                              {% assign newPrice = currency_symbol | append: priceWithoutCurrency %}
+                            {% endif %}
+                            <p class="line_items_price bold only-mobile">{{ newPrice }}</p>
+
+                          {%- endif -%}
+
+                        {%- else -%}
+
+                          {%- comment -%}
+                            <p class="line_items_price bold only-mobile">{{currency_symbol}}{{ line_item.quantity | times: line_item.price | money_without_currency }}</p>
+                          {%- endcomment -%}
+
+                          {%- comment -%}#### PRICE FORMAT ####{%- endcomment -%}
+                          {% assign currentCanonicalURL = canonical_url | append: '/' %}
+                          {% assign priceWithoutCurrency = line_item.quantity | times: line_item.price | money_without_currency %}
+                          {% assign newPrice = '' %}
+                            {% if details_currency == 'USD' %}
+                              {% if currentCanonicalURL contains "/fr/" %}
+                              {%- comment -%} International in French {%- endcomment -%}
+                              {% assign newPrice = priceWithoutCurrency | append: '$ USD' %}
+                              {% else %}
+                              {%- comment -%} International in English {%- endcomment -%}
+                              {% assign newPrice = 'USD $' | append: priceWithoutCurrency %}
+                            {% endif %}
+                          {% elsif details_currency == 'EUR' %}
+                            {% if currentCanonicalURL contains "/fr/" %}
+                              {%- comment -%} Europe in French {%- endcomment -%}
+                              {% assign newPrice = priceWithoutCurrency | append: '€' %}
+                              {% else %}
+                              {%- comment -%} Europe in English {%- endcomment -%}
+                              {% assign newPrice = '€' | append: priceWithoutCurrency %}
+                            {% endif %}
+                          {% else %}
+                            {% assign newPrice = currency_symbol | append: priceWithoutCurrency %}
+                          {% endif %}
+                          <p class="line_items_price bold only-mobile">{{ newPrice }}</p>
+
+                        {%- endif -%}
+
+                        <div data-order-return-motif class="hide order__return-motif mb-20">
+                          <p class="bold">{{ 'customer.orders.motif_title' | t }}</p>
+                          <div class="order__return-select-container">
+                            <select
+                              class="order__return-reason-select"
+                              name="order_return-reason"
+                              required>
+                              <option value="W01">{{ 'customer.orders.reason_1' | t }}</option>
+                              <option value="W02">{{ 'customer.orders.reason_2' | t }}</option>
+                              <option value="W03">{{ 'customer.orders.reason_3' | t }}</option>
+                              <option value="W04">{{ 'customer.orders.reason_4' | t }}</option>
+                              <option value="W05">{{ 'customer.orders.reason_5' | t }}</option>
+                            </select>
+                            <input
+                              type="number"
+                              class="order__return-quantity"
+                              name="order__return-quantity"
+                              value="1"
+                              min="1"
+                              max="{{ line_item.quantity }}">
+                          </div>
+                          <div class="order__return-details-container">
+                            <textarea
+                              name="order__return-details"
+                              class="order__return-details"
+                              cols="30"
+                              rows="6"
+                              placeholder="{{ 'customer.orders.return_details' | t  }}"></textarea>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="grid__cell grid--right 2/8--lap-and-up pt-20 only-desktop">
+
+                        {%- if itemsRefunded -%}
+
+                          {% assign amoutRefunded = 0 %}
+
+                          {%- for itemRefunded in itemsRefunded -%}
+
+                            {%- if itemRefunded.sku == line_item.sku -%}
+
+                              {% assign thisItemAmountRefunded = itemRefunded.quantity | times: itemRefunded.original_price %}
+
+                              {% assign amoutRefunded = amoutRefunded | plus: thisItemAmountRefunded %}
+
+                            {%- endif -%}
+
+                          {%- endfor -%}
+
+                          {%- if amoutRefunded > 0 -%}
+
+                            <div class="line_items_price__refunded">
+                              {% assign amoutRefunded = amoutRefunded | times: 100 %}
+
+                              {%- comment -%}
+                                <span class="line_items_price bold">-&nbsp;{{currency_symbol}}{{ amoutRefunded | money_without_currency }}</span>
+                              {%- endcomment -%}
+
+                              {%- comment -%}#### PRICE FORMAT ####{%- endcomment -%}
+                              {% assign currentCanonicalURL = canonical_url | append: '/' %}
+                              {% assign priceWithoutCurrency = amoutRefunded | money_without_currency %}
+                              {% assign newPrice = '' %}
+                                {% if details_currency == 'USD' %}
+                                  {% if currentCanonicalURL contains "/fr/" %}
+                                  {%- comment -%} International in French {%- endcomment -%}
+                                  {% assign newPrice = priceWithoutCurrency | append: '$ USD' %}
+                                  {% else %}
+                                  {%- comment -%} International in English {%- endcomment -%}
+                                  {% assign newPrice = 'USD $' | append: priceWithoutCurrency %}
+                                {% endif %}
+                              {% elsif details_currency == 'EUR' %}
+                                {% if currentCanonicalURL contains "/fr/" %}
+                                  {%- comment -%} Europe in French {%- endcomment -%}
+                                  {% assign newPrice = priceWithoutCurrency | append: '€' %}
+                                  {% else %}
+                                  {%- comment -%} Europe in English {%- endcomment -%}
+                                  {% assign newPrice = '€' | append: priceWithoutCurrency %}
+                                {% endif %}
+                              {% else %}
+                                {% assign newPrice = currency_symbol | append: priceWithoutCurrency %}
+                              {% endif %}
+                              <span class="line_items_price bold">-&nbsp;{{ newPrice }}</span>
+
+                              <span class="line_items_price__refunded-status">REFUNDED</span>
+                            </div>
+
+                          {%- else -%}
+
+                            {%- comment -%}
+                              <span class="line_items_price bold">{{currency_symbol}}{{ line_item.quantity | times: line_item.price | money_without_currency }}</span>
+                            {%- endcomment -%}
+
+                            {%- comment -%}#### PRICE FORMAT ####{%- endcomment -%}
+                            {% assign currentCanonicalURL = canonical_url | append: '/' %}
+                            {% assign priceWithoutCurrency = line_item.quantity | times: line_item.price | money_without_currency %}
+                            {% assign newPrice = '' %}
+                              {% if details_currency == 'USD' %}
+                                {% if currentCanonicalURL contains "/fr/" %}
+                                {%- comment -%} International in French {%- endcomment -%}
+                                {% assign newPrice = priceWithoutCurrency | append: '$ USD' %}
+                                {% else %}
+                                {%- comment -%} International in English {%- endcomment -%}
+                                {% assign newPrice = 'USD $' | append: priceWithoutCurrency %}
+                              {% endif %}
+                            {% elsif details_currency == 'EUR' %}
+                              {% if currentCanonicalURL contains "/fr/" %}
+                                {%- comment -%} Europe in French {%- endcomment -%}
+                                {% assign newPrice = priceWithoutCurrency | append: '€' %}
+                                {% else %}
+                                {%- comment -%} Europe in English {%- endcomment -%}
+                                {% assign newPrice = '€' | append: priceWithoutCurrency %}
+                              {% endif %}
+                            {% else %}
+                              {% assign newPrice = currency_symbol | append: priceWithoutCurrency %}
+                            {% endif %}
+                            <span class="line_items_price bold">{{ newPrice }}</span>
+
+                          {%- endif -%}
+
+                        {%- else -%}
+
+                          {%- comment -%}
+                            <span class="line_items_price bold">{{currency_symbol}}{{ line_item.quantity | times: line_item.price | money_without_currency }}</span>
+                          {%- endcomment -%}
+
+                          {%- comment -%}#### PRICE FORMAT ####{%- endcomment -%}
+                          {% assign currentCanonicalURL = canonical_url | append: '/' %}
+                          {% assign priceWithoutCurrency = line_item.quantity | times: line_item.price | money_without_currency %}
+                          {% assign newPrice = '' %}
+                            {% if details_currency == 'USD' %}
+                              {% if currentCanonicalURL contains "/fr/" %}
+                              {%- comment -%} International in French {%- endcomment -%}
+                              {% assign newPrice = priceWithoutCurrency | append: '$ USD' %}
+                              {% else %}
+                              {%- comment -%} International in English {%- endcomment -%}
+                              {% assign newPrice = 'USD $' | append: priceWithoutCurrency %}
+                            {% endif %}
+                          {% elsif details_currency == 'EUR' %}
+                            {% if currentCanonicalURL contains "/fr/" %}
+                              {%- comment -%} Europe in French {%- endcomment -%}
+                              {% assign newPrice = priceWithoutCurrency | append: '€' %}
+                              {% else %}
+                              {%- comment -%} Europe in English {%- endcomment -%}
+                              {% assign newPrice = '€' | append: priceWithoutCurrency %}
+                            {% endif %}
+                          {% else %}
+                            {% assign newPrice = currency_symbol | append: priceWithoutCurrency %}
+                          {% endif %}
+                          <span class="line_items_price bold">{{ newPrice }}</span>
+
+                        {%- endif -%}
+
+                      </div>
+
+                      <div data-order-return-mobile class="grid__cell only-mobile"></div>
+
+                    </div>
+                  </div>
+                {% endif %}
+              {% endfor %}
+
+              <div class="customer_orders_details order-delivery grid__cell 1/1">
+                <div class="grid relative">
+
+                  <div class="grid__cell 2/5 1/8--lap-and-up order__line-item-image">
+
+                    {% render 'image' with img: section.settings.delivery_img, classes: "featured-products__product-image order-delivery__img", dimensions: "100x", responsiveSizes: false %}
+
+                  </div>
+
+                  <div class="grid__cell 3/5 5/8--lap-and-up align-left--mobile pt-20">
+                    <p class="heading z-h9 order-delivery__title">{{ section.settings.delivery_title | default: "Delivery fees" }}</p>
+                    <div class="order-delivery__txt">
+                      {%- unless section.settings.delivery_text == blank -%}
+                        {{ section.settings.delivery_text }}
+                      {%- endunless -%}
+                    </div>
+
+                    {%- comment -%}
+                      <p class="line_items_price bold only-mobile">{{currency_symbol}}{{ order.shipping_price | plus: order.tax_price | money_without_currency }}</p>
+                    {%- endcomment -%}
+
+                    {%- comment -%}#### PRICE FORMAT ####{%- endcomment -%}
+                    {% assign currentCanonicalURL = canonical_url | append: '/' %}
+                    {% assign priceWithoutCurrency = order.shipping_price | plus: order.tax_price | money_without_currency %}
+                    {% assign newPrice = '' %}
+                    {% if details_currency == 'USD' %}
+                      {% if currentCanonicalURL contains "/fr/" %}
+                        {%- comment -%} International in French {%- endcomment -%}
+                        {% assign newPrice = priceWithoutCurrency | append: '$ USD' %}
+                        {% else %}
+                        {%- comment -%} International in English {%- endcomment -%}
+                        {% assign newPrice = 'USD $' | append: priceWithoutCurrency %}
+                      {% endif %}
+                    {% elsif details_currency == 'EUR' %}
+                      {% if currentCanonicalURL contains "/fr/" %}
+                        {%- comment -%} Europe in French {%- endcomment -%}
+                        {% assign newPrice = priceWithoutCurrency | append: '€' %}
+                        {% else %}
+                        {%- comment -%} Europe in English {%- endcomment -%}
+                        {% assign newPrice = '€' | append: priceWithoutCurrency %}
+                      {% endif %}
+                    {% else %}
+                      {% assign newPrice = currency_symbol | append: priceWithoutCurrency %}
+                    {% endif %}
+                    <p class="line_items_price bold only-mobile">{{ newPrice }}</p>
+
+                  </div>
+
+                  <div class="grid__cell grid--right 2/8--lap-and-up pt-20 only-desktop">
+
+                    {%- comment -%}
+                      <span class="line_items_price bold">{{currency_symbol}}{{ order.shipping_price | plus: order.tax_price | money_without_currency }}</span>
+                    {%- endcomment -%}
+
+                    {%- comment -%}#### PRICE FORMAT ####{%- endcomment -%}
+                    {% assign currentCanonicalURL = canonical_url | append: '/' %}
+                    {% assign priceWithoutCurrency = order.shipping_price | plus: order.tax_price | money_without_currency %}
+                    {% assign newPrice = '' %}
+                      {% if details_currency == 'USD' %}
+                        {% if currentCanonicalURL contains "/fr/" %}
+                        {%- comment -%} International in French {%- endcomment -%}
+                        {% assign newPrice = priceWithoutCurrency | append: '$ USD' %}
+                        {% else %}
+                        {%- comment -%} International in English {%- endcomment -%}
+                        {% assign newPrice = 'USD $' | append: priceWithoutCurrency %}
+                      {% endif %}
+                    {% elsif details_currency == 'EUR' %}
+                      {% if currentCanonicalURL contains "/fr/" %}
+                        {%- comment -%} Europe in French {%- endcomment -%}
+                        {% assign newPrice = priceWithoutCurrency | append: '€' %}
+                        {% else %}
+                        {%- comment -%} Europe in English {%- endcomment -%}
+                        {% assign newPrice = '€' | append: priceWithoutCurrency %}
+                      {% endif %}
+                    {% else %}
+                      {% assign newPrice = currency_symbol | append: priceWithoutCurrency %}
+                    {% endif %}
+                    <span class="line_items_price bold">{{ newPrice }}</span>
+                  </div>
+
+                </div>
+              </div>
 
               <div class="grid__cell align-right">
                 {% assign return_request = false %}
@@ -23,20 +608,28 @@
                 {% elsif return_request %}
                   {%- if order.total_refunded_amount > 0 -%}
 
+                    {%- comment -%}
+                      <p class="align-left text--s">You have been refunded {{currency_symbol}}{{ order.total_refunded_amount | money_without_currency }}</p>
+                    {%- endcomment -%}
 
+                    {%- comment -%}#### PRICE FORMAT ####{%- endcomment -%}
                     {% assign currentCanonicalURL = canonical_url | append: '/' %}
                     {% assign priceWithoutCurrency = order.total_refunded_amount | money_without_currency %}
                     {% assign newPrice = '' %}
                       {% if details_currency == 'USD' %}
                         {% if currentCanonicalURL contains "/fr/" %}
+                        {%- comment -%} International in French {%- endcomment -%}
                         {% assign newPrice = priceWithoutCurrency | append: '$ USD' %}
                         {% else %}
+                        {%- comment -%} International in English {%- endcomment -%}
                         {% assign newPrice = 'USD $' | append: priceWithoutCurrency %}
                       {% endif %}
                     {% elsif details_currency == 'EUR' %}
                       {% if currentCanonicalURL contains "/fr/" %}
+                        {%- comment -%} Europe in French {%- endcomment -%}
                         {% assign newPrice = priceWithoutCurrency | append: '€' %}
                         {% else %}
+                        {%- comment -%} Europe in English {%- endcomment -%}
                         {% assign newPrice = '€' | append: priceWithoutCurrency %}
                       {% endif %}
                     {% else %}
@@ -84,3 +677,94 @@
           </div>
 
         {% endfor %}
+
+        <div data-order-return-confirmation class="mb-30 hide customer_account_block container--account">
+          <div class="order__confirmation-return-container">
+            <div class="order__confirmation-return-texts">
+              <h2 class="order__confirmation-return-title heading--secondary z-h5">{{ 'customer.orders.confirmation_return' | t }}</h2>
+              <p class="order__confirmation-return-text mt-20 mb-0">{{ 'customer.orders.confirmation_return_text1' | t }}</p>
+              <p class="order__confirmation-return-text mt-0 mb-30 bold">{{ 'customer.orders.confirmation_return_text2' | t }}</p>
+
+              {%- comment -%}
+                <button data-order-return-confirmation-link class="button button--invert mb-30" disabled>{{ 'customer.orders.confirmation_return_button' | t }}</button>
+              {%- endcomment -%}
+
+              <p class="order__confirmation-return-back text--s">{{ 'customer.orders.confirmation_return_back' | t }}</p>
+            </div>
+            <div class="order__confirmation-return-img-ctn">
+              {% render 'image' with url: "https://cdn.shopify.com/s/files/1/0520/0445/4582/files/empty.png?v=1616682983", classes: "order__confirmation-return-image" %}
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+{% schema %}
+  {
+    "name": "Order list Page",
+    "settings": [
+      {
+        "type": "header",
+        "content": "Orders status"
+      },
+      {
+        "type": "text",
+        "id": "order_status_1",
+        "label": "Order Status 1",
+        "default": "Forwarded to the delivery service"
+      },
+      {
+        "type": "text",
+        "id": "order_status_2",
+        "label": "Order Status 2",
+        "default": "In preparation"
+      },
+      {
+        "type": "text",
+        "id": "order_status_3",
+        "label": "Order Status 3",
+        "default": "Ready to ship"
+      }, {
+        "type": "text",
+        "id": "order_status_4",
+        "label": "Order Status 4",
+        "default": "Delivered"
+      }, {
+        "type": "text",
+        "id": "order_status_5",
+        "label": "Order Status 5",
+        "default": "Return request made"
+      }, {
+        "type": "text",
+        "id": "order_status_6",
+        "label": "Order Status 6",
+        "default": "Quality control carried out"
+      }, {
+        "type": "text",
+        "id": "order_status_7",
+        "label": "Order Status 7",
+        "default": "Refunded"
+      }, {
+        "type": "header",
+        "content": "Delivery fees"
+      }, {
+        "type": "image_picker",
+        "id": "delivery_img",
+        "label": "Image"
+      }, {
+        "type": "text",
+        "id": "delivery_title",
+        "label": "Title",
+        "default": "Delivery fees"
+      }, {
+        "type": "richtext",
+        "id": "delivery_text",
+        "label": "Text",
+        "default": "<p>This includes shipping, taxes and custom duties if any</p>"
+      }
+    ]
+  }
+{% endschema %}
