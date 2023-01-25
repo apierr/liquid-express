@@ -54,6 +54,3 @@ app.listen(3000, () => console.log("Server started!"));
 </html>
 
 ```
-
-# Join my discord
-**[https://discord.gg/2SUybzb](https://discord.gg/2SUybzb)**
